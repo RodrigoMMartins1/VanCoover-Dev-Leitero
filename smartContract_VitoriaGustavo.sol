@@ -23,26 +23,30 @@ contract ContratoCoover {
         return depositoInicial;
         //retornando o valor do depósito inicial que deve ser realizado
     }
+
+    //Estrutura que contém o endereço da carteira do usuário e um valor booleano para representar a confirmação da renovação do usuário.
+    struct Usuario {
+    address carteiraUsuario;
+    bool confirmaRenovacao;
+    }
+
+    //Função para aceitação de renovação do contrato a partir dos usuários
+    function aceitarRenovação(bool escolha) public {
+    //Declara variável booleana usuarioJaConfirmiu e instancia como FALSE
+    bool usuarioJaConfirmou = false;
+    //Loop para passar por cada elemento no array carteira
+    for (uint i = 0; i < carteira.length; i++) {
+        //verifica se o endereço da carteira do usuário no array é igual ao endereço do usuário que está chamando a função.
+        if (carteira[i].carteiraUsuario == msg.sender) {
+            //Define a confirmação do usuário do usuário atual no array como a escolha fornecida na chamada da função.
+            carteira[i].confirmaRenovacao = escolha;
+            //verificar se o usuário atual já escolheu a confirmação
+            usuarioJaConfirmou = true;
+            //Comando para sair do loop atual assim que o encontrar usuário e registrar escolha 
+            break;
+        }
+    }
+
 }
-
-// pragma solidity ^0.8.17;
-// contract ContratoCoover2 {
-//     //estrutura de dados para armazenar as informações necessários para entrar em um contrato
-//     struct entrarContrato2 {
-//         bytes32 hashImei; //retorna o valor do hash do IMEI (32 dígitos)
-//         uint valorCelular; // valor referente ao celular do usuário
-//         bool possuiCarteira; //se o usuário possui carteira no Metamask
-//     }
-
-// // função que recebe e retorna as informações do backend (sem armazenamento no contrato, apenas na memória)
-//     function retornarEntrarContrato2(bytes32 hashImei, uint valorCelular, bool possuiCarteira) public pure returns (entrarContrato2 memory) {
-//         return entrarContrato2({
-//             hashImei: hashImei,
-//             valorCelular: valorCelular,
-//             possuiCarteira: possuiCarteira
-
-//         });
-//     }
-// }
 
 
