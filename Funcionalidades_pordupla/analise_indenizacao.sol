@@ -109,11 +109,6 @@ contract ContratoCoover {
         }
     }
 
-// -> usuário pedindo
-// pedir
-// saldo
-// hash do bo
-
 // A função para indenizar os usuários é tida como uma das funcionalidades mais importantes do contrato, visto que, dado que a sinistralidade aconteceu, o cálculo da idenização deve ser feito corretamente para não afetar as outras partes do contrato.
         // 1. Todo o saldo atual do participante que solicitou indenização deve consumido nesse processo, restando saldo zero para ele ao final.
         // 2. O restante do valor X a ser indenizado será dividido por todos os demais participantes, proporcionalmente ao saldo de cada um, e consequentemente, ao valor efetivamente protegido de cada um.
@@ -137,8 +132,18 @@ contract ContratoCoover {
     saldo[msg.sender] = 0;
     }
        } else{
-        require ("A indenizaçao nao pode ser dada.")
+        require ("A indenização não pode ser dada.")
        }
+
+    // Demonstrando que há um BO
+    function aceitarIndenizacao{
+        if (bo() = true){
+            return indenizar();
+        }
+        else (bo() = false){
+            emit Imprimir("A indenização não pode ser dada.");
+        }
+    }
 
     // Retorna o saldo do contrato.
     function mostrarSaldo() public view returns (uint) {
