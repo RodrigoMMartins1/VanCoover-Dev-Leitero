@@ -2,30 +2,34 @@
 pragma solidity ^0.8.17;
 contract ContratoCoover {
     // Variáveis fundamentais para a manipulação dos conteúdos dentro das funções.
-    uint public valorAtivo;
-    uint public saldoUsuario;
-    uint public saldoContrato;
-    uint public quantiUsuario;
-    uint public dataInicio;
-    uint public dataValidade;
-    uint public minPessoas = 5;
-    uint public maxPessoas = 50;
-    uint public duracaoDias;
-    uint public valorCobertura;
-    uint public totalContrato;
-    string private IMEI;
-    uint public taxAdmin;
+    uint public valorAtivo; //valor do celular
+    uint public saldoUsuario; //valor que o usuário tem na carteira
+    uint public saldoContrato; //saldo total do contrato
+    uint public quantiUsuario; //quantidade de usuários
+    uint public dataInicio; // data de criação do contrato
+    uint public dataValidade; //data final do contrato
+    uint public minPessoas = 5; //mínimo de pessoas para ativação do contrato
+    uint public maxPessoas = 50; //máximo de pessoas para ativação do contrato
+    uint public duracaoDias; //duração de dias do contrato
+    uint public valorCobertura; //valor da taxa aplicado no valor do ativo
+    uint public totalContrato; //total do valor do contrato
+    string private IMEI; //já é o hash do IMEI
+    uint public taxAdmin; //taxa administrativa
 
     string[] private listaIMEIs;
-    address private _admin;
+    address private _admin; //endereço da Coover(admin)
+    Usuario[] public usuarios;
    
 
     // Struct definido para armazenar os dados das carteiras associadas ao contrato, tendo como membro os endereços das carteiras.
     struct Usuarios {
-        address carteiraUsuario;
-        address imeiAtivo;
+        address carteiraUsuario; //endereço da carteira do usuário
+        string IMEI; // hash do IMEI do usuário 
 
     }
+
+    Usuarios[] public usuarios;
+
     // Armazena-se as carteiras em um array público para serem lidas como a variável carteira.
     Usuarios[] public carteira;
     // Mapeamento do número de carteiras que estão associadas ao contrato.
