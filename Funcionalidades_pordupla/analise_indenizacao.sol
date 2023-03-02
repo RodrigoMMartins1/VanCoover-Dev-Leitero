@@ -132,16 +132,16 @@ contract ContratoCoover {
     saldo[msg.sender] = 0;
     }
        } else{
-        require ("A indenizaçao nao pode ser dada.")
+        require ("A indenização não pode ser dada.")
        }
 
-    // Enviar o bo para análise pelo colaborador coover
+    // Demonstrando que há um BO
     function aceitarIndenizacao{
-        if (bo = true){
+        if (bo() = true){
             return indenizar();
         }
-        else (bo = false){
-            emit Imprimir("BO recusado!");
+        else (bo() = false){
+            emit Imprimir("A indenização não pode ser dada.");
         }
     }
 
