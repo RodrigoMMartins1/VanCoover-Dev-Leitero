@@ -13,7 +13,8 @@ struct Participante {
     bytes15 bo; //bo do participante que estará em hash
     uint256 qntIndenizacao; //Quantidade de indenizações que um participante recebeu
     bool pediuIndenizacao; // Diz se um participante solicitou ou não uma indenização
-    uint256 index; //Index do participante na lista
+    uint256 index; 
+    bool depositoFeito;//Diz se o deposito inicial foi feito ou nao
 
 
    
@@ -37,6 +38,10 @@ struct Grupo {
 }
 
 //Outras Variáveis que serão usadas no projeto
+    mapping (address => Participante) mapeamentoParticipantes2; // Mapeamento de Participantes por endereço
+    address[] participantes2;
+    uint256 qntparticipantes2;
+
 
 
 //Eventos para serem usados mais tarde
@@ -65,61 +70,51 @@ event pedidoIndenizacao(address indexed participante, bytes15 bo);
 
 
 //Funções(Regras de negócios)
-
-
-//Entrar no smart contract, requisitos imei, valor do ativo endereço da carteira do participante, colocar a função deposito inicial
-function entrarGrupo(bytes15 _imei, uint256 _valorAtivo, address payable  _endereco) external payable {
+function adicionarUsuarios(bytes15 _imei, uint256 _valorAtivo, address payable  _endereco) public {
+    require(meuGrupo.seguradora == msg.sender, "Apenas a seguradora pode executar");
+    // Verifica se o número máximo de participantes não foi atingido
     require(meuGrupo.qntparticipantes < meuGrupo.maximoParticipantes, "Grupo ja atingiu o limite maximo de participantes.");
-
-    require(msg.value == (_valorAtivo * 5 / 100) + meuGrupo.taxAdmin, "Deposito inicial incorreto.");
-    uint256 _qntIndenizacao = 0;
     
-
-    
-    // Adiciona o participante no mapeamento de participantes
-    meuGrupo.mapeamentoParticipantes[_endereco] = Participante({
-        saldo: msg.value,
+    // Cria um novo Participante no mapeamento de participantes do grupo
+    mapeamentoParticipantes2[_endereco] = Participante({
+        saldo: 0,
         imei: _imei,
         endereco: _endereco,
         valorAtivo: _valorAtivo,
         bo: "",
-        qntIndenizacao: _qntIndenizacao,
+        qntIndenizacao: 0,
         pediuIndenizacao: false,
-        index: meuGrupo.participantes.length - 1
+        index: meuGrupo.participantes.length,
+        depositoFeito: false
     });
-
-    
-
     
     // Adiciona o endereço do participante no array de participantes do grupo
-    meuGrupo.participantes.push(_endereco);
+    participantes2.push(_endereco);
     
     // Incrementa o número de participantes do grupo
-    meuGrupo.qntparticipantes++;
-
-     // Transfere a taxa administrativa para a carteira da seguradora
-    meuGrupo.seguradora.transfer(meuGrupo.taxAdmin);
-
-    //Adiciona no saldo do Grupo
-    meuGrupo.saldoTotal += _valorAtivo * 5 / 100;
+    qntparticipantes2++;
     
-
-    //Adicionado a lista de participantes
-    emit novoParticipanteGrupo(_endereco, msg.value);
+    // Emite o evento de novo participante no grupo
+    emit novoParticipanteGrupo(_endereco, 0);
+    
 }
 
 
 
+
+
+
+
 // Função para realizar um depósito de um participante no grupo
-function depositar() public payable {
+function depositarInicial() public payable {
     //Instancia o participante que entrou no grupo
-    Participante storage participante = meuGrupo.mapeamentoParticipantes[msg.sender];
+    Participante storage participante = mapeamentoParticipantes2[msg.sender];
 
     //Permite que só possa entrar so arquivo maior que 0
     require(participante.valorAtivo > 0, "Participante nao encontrado");
 
     //Deposito é o valor do ativo * 5 porcento
-    uint256 deposito = participante.valorAtivo * 5 / 100;
+    uint256 deposito = participante.valorAtivo * 5 / 100 + meuGrupo.taxAdmin;
 
     //Colaca o saldo do participante como deposito
     participante.saldo = deposito;
@@ -127,7 +122,33 @@ function depositar() public payable {
 
     require(msg.value == deposito, "Valor de deposito incorreto");
 
-    meuGrupo.saldoTotal += deposito;
+    participante.depositoFeito = true;
+}
+
+
+//Entrar no smart contract, requisitos imei, valor do ativo endereço da carteira do participante, colocar a função deposito inicial
+function entrarGrupo(address payable _endereco) external payable {
+    require(meuGrupo.qntparticipantes < meuGrupo.maximoParticipantes, "Grupo ja atingiu o limite maximo de participantes.");
+    Participante storage participante = mapeamentoParticipantes2[_endereco];
+    require(participante.depositoFeito == true, "Deposito inicial incorreto.");    
+    
+    // Adiciona o novo Participante no mapeamento de participantes do grupo
+    meuGrupo.mapeamentoParticipantes[_endereco] = participante;
+    // Adiciona o endereço do participante no array de participantes do grupo
+    meuGrupo.participantes.push(_endereco);
+
+    // Incrementa o número de participantes do grupo
+    meuGrupo.qntparticipantes++;
+
+     // Transfere a taxa administrativa para a carteira da seguradora
+    meuGrupo.seguradora.transfer(participante.saldo - participante.valorAtivo * 5/100);
+
+    //Adiciona no saldo do Grupo
+    meuGrupo.saldoTotal += participante.saldo;
+    
+
+    //Adicionado a lista de participantes
+    emit novoParticipanteGrupo(participante.endereco, msg.value);
 }
 
 
@@ -140,7 +161,6 @@ function depositar() public payable {
 function solicitarIndenizacao( address _endereco, bytes15 _bo) public {
     Participante storage participante = meuGrupo.mapeamentoParticipantes[_endereco];
     require(participante.saldo >=   participante.valorAtivo * 5/100, "Saldo insuficiente para solicitar indenizacao");
-    require(participante.bo == _bo, "BO invalido");
 
     emit pedidoIndenizacao(msg.sender, _bo);
     participante.pediuIndenizacao = true;
@@ -184,7 +204,7 @@ function indenizacao(address payable _participante, bytes15 _imei, uint256 _valo
          Participante storage participante = meuGrupo.mapeamentoParticipantes[meuGrupo.participantes[i]];
          
          //Contribuicao é o valor proporcional de cada participante para pagar o valor do Ativo do indenizado
-         uint256 contribuicao = (participante.valorAtivo * 5/100) / valorParaContribuicao;
+         uint256 contribuicao = (participante.valorAtivo * 5) / valorParaContribuicao;
          
          //Retira a contribuicao do saldo do participante
          participante.saldo -= contribuicao;
@@ -345,3 +365,15 @@ function indenizacao(address _endereco) external view returns (uint256){
 
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
