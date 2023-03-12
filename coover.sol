@@ -13,7 +13,7 @@ struct Participante {
     bytes15 bo; //bo do participante que estará em hash
     uint256 qntIndenizacao; //Quantidade de indenizações que um participante recebeu
     bool pediuIndenizacao; // Diz se um participante solicitou ou não uma indenização
-    uint256 index; //Diz a posição do participante na lista
+    uint256 index; 
     bool depositoFeito;//Diz se o deposito inicial foi feito ou nao
 
 
@@ -39,14 +39,14 @@ struct Grupo {
 
 //Outras Variáveis que serão usadas no projeto
     mapping (address => Participante) mapeamentoParticipantes2; // Mapeamento de Participantes por endereço
-    address[] participantes2; //lista dos participantes
-    uint256 qntparticipantes2; //quantidade dos participantes
+    address[] participantes2;
+    uint256 qntparticipantes2;
 
 
 
 //Eventos para serem usados mais tarde
-event novoParticipanteGrupo(address indexed participante, uint256 valor);//evento para quando novo participante for adicionado no grupo
-event pedidoIndenizacao(address indexed participante, bytes15 bo);//evento para quando ocorrer pedido de indenizacao
+event novoParticipanteGrupo(address indexed participante, uint256 valor);
+event pedidoIndenizacao(address indexed participante, bytes15 bo);
 
 
 
@@ -67,11 +67,34 @@ event pedidoIndenizacao(address indexed participante, bytes15 bo);//evento para 
 
 
 
+//Entrar no smart contract, requisitos imei, valor do ativo endereço da carteira do participante, colocar a função deposito inicial
+function entrarGrupo(address payable _endereco)  public payable {
+    require(meuGrupo.qntparticipantes < meuGrupo.maximoParticipantes, "Grupo ja atingiu o limite maximo de participantes.");
+    Participante storage participante = mapeamentoParticipantes2[_endereco];
 
+    require(participante.depositoFeito == true, "Deposito inicial incorreto.");    
+    
+    // Adiciona o novo Participante no mapeamento de participantes do grupo
+    meuGrupo.mapeamentoParticipantes[_endereco] = participante;
+    // Adiciona o endereço do participante no array de participantes do grupo
+    meuGrupo.participantes.push(_endereco);
+
+    // Incrementa o número de participantes do grupo
+    meuGrupo.qntparticipantes++;
+
+     // Transfere a taxa administrativa para a carteira da seguradora
+    meuGrupo.seguradora.transfer(participante.saldo - participante.valorAtivo * 5/100);
+
+    //Adiciona no saldo do Grupo
+    meuGrupo.saldoTotal += participante.saldo;
+    
+
+    //Adicionado a lista de participantes
+    emit novoParticipanteGrupo(participante.endereco, msg.value);
+}
 
 //Funções(Regras de negócios)
-//Função para instanciar usuarios
-function adicionarUsuarios(bytes15 _imei, uint256 _valorAtivo, address payable  _endereco) public {
+function adicionarUsuarios(bytes15 _imei, uint256 _valorAtivo, address payable  _endereco) public payable {
     require(meuGrupo.seguradora == msg.sender, "Apenas a seguradora pode executar");
     // Verifica se o número máximo de participantes não foi atingido
     require(meuGrupo.qntparticipantes < meuGrupo.maximoParticipantes, "Grupo ja atingiu o limite maximo de participantes.");
@@ -97,6 +120,10 @@ function adicionarUsuarios(bytes15 _imei, uint256 _valorAtivo, address payable  
     
     // Emite o evento de novo participante no grupo
     emit novoParticipanteGrupo(_endereco, 0);
+
+    //Adiciona Participante no Grupo
+    depositarInicial(_endereco);
+    entrarGrupo(_endereco);
     
 }
 
@@ -106,10 +133,12 @@ function adicionarUsuarios(bytes15 _imei, uint256 _valorAtivo, address payable  
 
 
 
-// Função para realizar verificar se o usuario consegue realizar o depósito
-function depositarInicial() public payable {
+// Função para realizar um depósito de um participante no grupo
+function depositarInicial(address payable _endereco) public payable {
     //Instancia o participante que entrou no grupo
-    Participante storage participante = mapeamentoParticipantes2[msg.sender];
+
+
+    Participante storage participante = mapeamentoParticipantes2[_endereco];
 
     //Permite que só possa entrar so arquivo maior que 0
     require(participante.valorAtivo > 0, "Participante nao encontrado");
@@ -127,37 +156,15 @@ function depositarInicial() public payable {
 }
 
 
-//Entrar no smart contract, requisitos imei, valor do ativo endereço da carteira do participante, e depóstio com a porcentagem dos ativos
-function entrarGrupo(address payable _endereco) external payable {
-    require(meuGrupo.qntparticipantes < meuGrupo.maximoParticipantes, "Grupo ja atingiu o limite maximo de participantes.");
-    Participante storage participante = mapeamentoParticipantes2[_endereco];
-    require(participante.depositoFeito == true, "Deposito inicial incorreto.");    
-    
-    // Adiciona o novo Participante no mapeamento de participantes do grupo
-    meuGrupo.mapeamentoParticipantes[_endereco] = participante;
-    // Adiciona o endereço do participante no array de participantes do grupo
-    meuGrupo.participantes.push(_endereco);
-
-    // Incrementa o número de participantes do grupo
-    meuGrupo.qntparticipantes++;
-
-     // Transfere a taxa administrativa para a carteira da seguradora
-    meuGrupo.seguradora.transfer(participante.saldo - participante.valorAtivo * 5/100);
-
-    //Adiciona no saldo do Grupo
-    meuGrupo.saldoTotal += participante.saldo;
-    
-
-    //Adicionado a lista de participantes
-    emit novoParticipanteGrupo(participante.endereco, msg.value);
-}
 
 
 
 
 
 
-//Fazer soliciacao que notifica a seguradora com o bo do segurado que pediu
+
+//Fazer pedido de indenização, provas de documento de sinistralidade(BO), tem q ter emit do evento para notificar o adm(segurado) com o bo do participante
+
 function solicitarIndenizacao( address _endereco, bytes15 _bo) public {
     Participante storage participante = meuGrupo.mapeamentoParticipantes[_endereco];
     require(participante.saldo >=   participante.valorAtivo * 5/100, "Saldo insuficiente para solicitar indenizacao");
@@ -166,7 +173,6 @@ function solicitarIndenizacao( address _endereco, bytes15 _bo) public {
     participante.pediuIndenizacao = true;
     
 }
-//Conta da indenizacao
 
 function indenizacao(address payable _participante, bytes15 _imei, uint256 _valorAtivo) public {
     require(msg.sender == meuGrupo.seguradora, "Apenas a seguradora pode executar essa funcao");
@@ -253,8 +259,7 @@ function reservaRisco() public payable {
 
     //Reserva de risco
     uint256 reserva;
-    
-    //Valor da reserva
+
     reserva = msg.value;
 
     //Adiciona um depósito avulso ao saldo do participante
@@ -363,6 +368,10 @@ function dataValidade() external view returns (uint256) {
 //Ver quantidade de indenização do participante
 function indenizacao(address _endereco) external view returns (uint256){
     return meuGrupo.mapeamentoParticipantes[_endereco].qntIndenizacao;
+}
+//Ver saldo total do grupo
+function saldoTotalGrupo() external view returns (uint256){
+    return meuGrupo.saldoTotal;
 }
 
 
